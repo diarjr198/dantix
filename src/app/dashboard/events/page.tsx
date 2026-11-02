@@ -1,0 +1,16 @@
+import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { getCurrentUser } from '@/server/auth/session';
+import { dashboardEvents } from '@/server/events';
+import { EventDeleteButton } from '@/components/dashboard/event-delete-button';
+import { EventPreviewDialog } from '@/components/dashboard/event-preview-dialog';
+import { Button } from '@/components/ui/button';
+type DashboardEvent = Awaited<ReturnType<typeof import('@/server/events').dashboardEvents>>['events'][number];
+const Preview = ({ event }: { event: DashboardEvent }) => <EventPreviewDialog event={event as Parameters<typeof EventPreviewDialog>[0]['event']} />;
+export default async function Events({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
+  const user = await getCurrentUser();
+  if (!user) redirect('/masuk');
+  const requestedPage = Number((await searchParams).page) || 1;
+  const result = await dashboardEvents(user, requestedPage, 8);
+  return <main><div className="mb-8 flex items-center justify-between"><div><p className="text-sm text-slate-500">{result.total} event dikelola</p><h1 className="text-3xl font-black">Kelola Event</h1></div><Link href="/dashboard/events/new" className="rounded bg-[#e51d59] px-5 py-3 font-bold text-white">+ Buat event</Link></div><div className="overflow-hidden rounded-xl border bg-white shadow-sm">{result.events.length === 0 ? <p className="p-10 text-center text-slate-500">Belum ada event.</p> : result.events.map((event) => <div key={event.id} className="flex flex-wrap items-center gap-4 border-b p-4 last:border-0"><img src={event.bannerImageUrl} alt="" className="h-20 w-28 rounded object-cover" /><div className="min-w-0 flex-1"><h2 className="truncate font-bold">{event.title}</h2>{user.isAdmin && <p className="text-sm font-medium text-slate-600">Penyelenggara: {event.organizer?.name ?? '-'}</p>}<p className="text-sm text-slate-500">{event.status} · {event.moderationStatus}</p><p className="mt-1 text-xs text-slate-400">{new Date(event.startsAt).toLocaleString('id-ID')}</p></div><div className="flex items-center gap-4"><Preview event={event} /><Button render={<Link href={`/dashboard/events/${event.id}/edit`} />} size="sm" className="bg-[#ffd23f]">Edit</Button><EventDeleteButton id={event.id} title={event.title} disabled={event.status !== 'DRAFT'} /></div></div>)}</div>{result.pages > 1 && <nav className="mt-6 flex items-center justify-center gap-2" aria-label="Pagination"><Link aria-disabled={result.page === 1} href={`/dashboard/events?page=${Math.max(1, result.page - 1)}`} className={`rounded border px-3 py-2 text-sm ${result.page === 1 ? 'pointer-events-none opacity-40' : ''}`}>Sebelumnya</Link>{Array.from({ length: result.pages }, (_, index) => index + 1).map((page) => <Link key={page} href={`/dashboard/events?page=${page}`} className={`rounded px-3 py-2 text-sm font-bold ${page === result.page ? 'bg-[#00a884] text-white' : 'border bg-white'}`}>{page}</Link>)}<Link aria-disabled={result.page === result.pages} href={`/dashboard/events?page=${Math.min(result.pages, result.page + 1)}`} className={`rounded border px-3 py-2 text-sm ${result.page === result.pages ? 'pointer-events-none opacity-40' : ''}`}>Berikutnya</Link></nav>}</main>;
+}

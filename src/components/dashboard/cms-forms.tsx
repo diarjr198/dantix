@@ -1,0 +1,25 @@
+'use client';
+
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+
+type Faq = { id?: string; question: string; answer: string; sortOrder: number; published: boolean };
+type Settings = { siteName: string; logoUrl: string; address: string; heroTitle: string; heroSubtitle: string; heroImageUrl: string; aboutTitle: string; aboutDescription: string; contactEmail: string; contactPhone: string; instagramUrl: string; xUrl: string; facebookUrl: string };
+
+function ErrorMessage({ error }: { error: string }) { return error ? <p className="nb-alert mt-4 bg-red-100 text-red-800">{error}</p> : null; }
+
+export function FaqManager({ initialFaqs }: { initialFaqs: Faq[] }) {
+  const [faqs, setFaqs] = useState(initialFaqs); const [form, setForm] = useState<Faq>({ question: '', answer: '', sortOrder: 0, published: true }); const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
+  const save = async () => { setBusy(true); setError(''); const method = form.id ? 'PATCH' : 'POST'; const url = form.id ? `/api/admin/faqs/${form.id}` : '/api/admin/faqs'; const response = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) }); const body = await response.json().catch(() => ({})); if (!response.ok) setError(body.error ?? 'Gagal menyimpan'); else { setFaqs(form.id ? faqs.map((faq) => faq.id === form.id ? body.faq : faq) : [...faqs, body.faq]); setForm({ question: '', answer: '', sortOrder: 0, published: true }); } setBusy(false); };
+  const remove = async (id: string) => { if (!confirm('Hapus FAQ ini?')) return; const response = await fetch(`/api/admin/faqs/${id}`, { method: 'DELETE' }); if (response.ok) setFaqs(faqs.filter((faq) => faq.id !== id)); };
+  return <div className="grid gap-8 lg:grid-cols-[1fr_1.3fr]"><section className="nb-card bg-white p-5"><h2 className="text-xl font-heading">{form.id ? 'Edit FAQ' : 'Tambah FAQ'}</h2><div className="mt-5 space-y-4"><Input placeholder="Pertanyaan" value={form.question} onChange={(e) => setForm({ ...form, question: e.target.value })} /><Textarea placeholder="Jawaban" value={form.answer} onChange={(e) => setForm({ ...form, answer: e.target.value })} /><Input type="number" placeholder="Urutan" value={form.sortOrder} onChange={(e) => setForm({ ...form, sortOrder: Number(e.target.value) })} /><label className="flex gap-2 text-sm"><input type="checkbox" checked={form.published} onChange={(e) => setForm({ ...form, published: e.target.checked })} /> Tampilkan di website</label><Button onClick={save} disabled={busy}>{busy ? 'Menyimpan…' : 'Simpan FAQ'}</Button><ErrorMessage error={error} /></div></section><section className="space-y-3">{faqs.map((faq) => <article key={faq.id} className="nb-card bg-white p-4"><div className="flex justify-between gap-3"><div><h3 className="font-bold">{faq.question}</h3><p className="mt-2 text-sm text-slate-600">{faq.answer}</p></div><span className="text-xs">{faq.published ? 'Publik' : 'Draft'}</span></div><div className="mt-4 flex gap-2"><Button size="sm" variant="neutral" onClick={() => setForm(faq)}>Edit</Button><Button size="sm" onClick={() => faq.id && remove(faq.id)} className="bg-red-400">Hapus</Button></div></article>)}</section></div>;
+}
+
+export function SettingsForm({ initialSettings }: { initialSettings: Settings }) {
+  const [settings, setSettings] = useState(initialSettings); const [message, setMessage] = useState(''); const [busy, setBusy] = useState(false);
+  const save = async () => { setBusy(true); setMessage(''); const response = await fetch('/api/admin/site-settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(settings) }); setMessage(response.ok ? 'Perubahan tersimpan.' : 'Gagal menyimpan perubahan.'); setBusy(false); };
+  const field = (key: keyof Settings, label: string, area = false) => area ? <label className="block text-sm font-bold">{label}<Textarea className="mt-2" value={settings[key]} onChange={(e) => setSettings({ ...settings, [key]: e.target.value })} /></label> : <label className="block text-sm font-bold">{label}<Input className="mt-2" value={settings[key]} onChange={(e) => setSettings({ ...settings, [key]: e.target.value })} /></label>;
+  return <div className="nb-card max-w-3xl bg-white p-5"><div className="space-y-5">{field('siteName', 'Nama website')}{field('logoUrl', 'URL logo')}{field('address', 'Alamat', true)}{field('heroTitle', 'Judul hero')}{field('heroSubtitle', 'Subjudul hero', true)}{field('heroImageUrl', 'URL gambar hero')}{field('aboutTitle', 'Judul tentang kami')}{field('aboutDescription', 'Deskripsi tentang kami', true)}{field('contactEmail', 'Email kontak')}{field('contactPhone', 'Telepon kontak')}{field('instagramUrl', 'URL Instagram')}{field('xUrl', 'URL X')}{field('facebookUrl', 'URL Facebook')}<Button onClick={save} disabled={busy}>{busy ? 'Menyimpan…' : 'Simpan pengaturan'}</Button>{message && <p className="text-sm font-bold">{message}</p>}</div></div>;
+}
