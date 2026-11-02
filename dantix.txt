@@ -1,0 +1,198 @@
+| Role      | Email                         | Password               | Login         |
+| --------- | ----------------------------- | ---------------------- | ------------- |
+| Admin     | `demo.admin@tiptip.local`     | `DemoOrganizer123!`    | `/masuk`      |
+| Organizer | `demo.organizer@tiptip.local` | `DemoOrganizer123!`    | `/masuk`      |
+| Gate      | `demo.gate@tiptip.local`      | `DemoOrganizer123!`    | `/gate/masuk` |
+| Customer  | Tidak dibuat oleh seed        | Buat melalui `/daftar` | `/masuk`      |
+
+
+## Gambaran alur sistem
+
+```text
+Customer memilih event
+  → memilih tier dan jumlah tiket
+  → mengisi kontak serta data peserta
+  → order PENDING dibuat dan quota direservasi
+  → Organizer/Admin mengonfirmasi pembayaran
+  → order menjadi PAID
+  → tiket + QR terenkripsi diterbitkan
+  → Customer membuka QR di detail pesanan
+  → Gate yang ditugaskan memindai QR
+  → tiket valid berubah ACTIVE → USED
+```
+
+Session customer/admin/organizer dan session gate memakai cookie berbeda. Artinya akun customer dapat tetap login di situs publik ketika akun gate login pada browser/domain yang sama.
+
+## Alur Customer
+
+### Tugas dan akses
+
+Customer bertindak sebagai pembeli dan pemilik tiket.
+
+1. Buka homepage `/` dan lihat katalog/spotlight event.
+2. Buka detail melalui `/event/[slug]`.
+3. Pilih ticket tier dan jumlah tiket.
+4. Lanjutkan ke opsi pemesanan.
+5. Isi data kontak pemesan dan data tiap peserta, termasuk nama, email, telepon, domisili, dan identitas jika diminta.
+6. Submit pesanan. Sistem membuat order berstatus `PENDING` dan mereservasi inventory.
+7. Buka `/pesanan` untuk melihat riwayat transaksi.
+8. Buka `/pesanan/[orderId]` untuk melihat booking code, peserta, status, dan tiket.
+9. Setelah pembayaran dikonfirmasi Organizer/Admin, status menjadi `PAID` dan QR tiket muncul.
+10. Tunjukkan QR kepada petugas Gate saat masuk event.
+11. Setelah check-in berhasil, status tiket berubah menjadi `USED` dan waktu check-in terlihat pada detail pesanan.
+
+### Akun dan profil
+
+- Registrasi: `/daftar`, menggunakan email atau nomor HP.
+- Login: `/masuk`.
+- Profil: `/profile` untuk mengubah nama, email, dan password.
+- Mengubah email atau password membutuhkan password saat ini.
+- Logout hanya menghapus session publik dan tidak mengganggu session Gate.
+
+### Status penting
+
+- Order `PENDING`: menunggu verifikasi pembayaran.
+- Order `PAID`: pembayaran dikonfirmasi dan tiket diterbitkan.
+- Ticket `ACTIVE`: QR valid dan belum digunakan.
+- Ticket `USED`: sudah check-in dan tidak dapat digunakan kembali.
+- Ticket `VOID`: tiket tidak berlaku.
+
+## Alur Organizer
+
+### Tugas dan akses
+
+Organizer mengelola event miliknya melalui `/dashboard`.
+
+1. Login melalui `/masuk` menggunakan akun Organizer.
+2. Dashboard Overview menampilkan total event, pesanan, pembayaran berhasil, pendapatan, dan pesanan terbaru untuk event miliknya.
+3. Buka Dashboard → Events untuk:
+   - Membuat event.
+   - Mengedit detail event.
+   - Mengatur banner, venue, tanggal, deskripsi, terms, seat map, ticket tier, harga, quota, periode penjualan, benefit, dan batas pembelian.
+   - Preview event.
+   - Menghapus draft yang belum memiliki order.
+4. Buka Dashboard → Pesanan untuk:
+   - Melihat pesanan event sendiri.
+   - Memeriksa booking, pembeli, total, dan status.
+   - Mengonfirmasi pembayaran order `PENDING`.
+5. Konfirmasi pembayaran menjalankan transaksi database:
+   - Order berubah menjadi `PAID`.
+   - Payment dicatat.
+   - Inventory reserved dipindahkan menjadi sold.
+   - Tiket tiap peserta diterbitkan.
+   - Credential QR random dibuat, hash disimpan untuk lookup, dan payload terenkripsi disimpan untuk ditampilkan kembali.
+6. Buka Dashboard → Tiket Terjual untuk memantau peserta, pembeli, event/tier, booking, dan status tiket.
+
+Organizer hanya dapat mengakses event, order, dan tiket milik organizer yang terhubung ke user tersebut.
+
+## Alur Gate
+
+### Tugas dan akses
+
+Gate adalah petugas check-in dan tidak memakai login publik biasa.
+
+1. Admin membuat atau mengaktifkan user role `GATE`.
+2. Admin memberi assignment event kepada user Gate melalui Dashboard → Users.
+3. Gate login melalui URL khusus `/gate/masuk`.
+4. Setelah login, `/gate` hanya menampilkan event aktif yang ditugaskan.
+5. Pilih event untuk membuka `/gate/[eventId]`.
+6. Scan QR menggunakan kamera belakang atau masukkan payload secara manual.
+7. Server memvalidasi:
+   - Session Gate valid.
+   - Gate memiliki assignment `CHECKIN` untuk event tersebut.
+   - Format dan hash QR valid.
+   - Tiket berasal dari event yang dipilih.
+   - Status tiket masih `ACTIVE` dan QR `READY`.
+8. Check-in dilakukan secara atomic:
+   - Ticket berubah `ACTIVE` → `USED`.
+   - `checkedInAt` dan petugas disimpan.
+   - Audit Checkin dibuat.
+9. Scan ulang tiket yang sama ditolak sebagai `ALREADY_USED`.
+10. Logout Gate hanya menghapus cookie Gate; session customer/public tetap aktif.
+
+Session Gate disimpan pada `tiptip_gate_session`, terpisah dari session publik `tiptip_session`.
+
+## Alur Admin
+
+### Tugas dan akses
+
+Admin memiliki akses global melalui `/dashboard`.
+
+### Event, order, dan tiket
+
+- Melihat seluruh event dari semua organizer.
+- Membuat, preview, mengedit, dan menghapus draft event sesuai aturan data.
+- Melihat seluruh pesanan beserta organizer dan detail pembayaran.
+- Mengonfirmasi pembayaran order `PENDING`.
+- Melihat seluruh tiket terjual dan status QR/check-in.
+- Halaman event, pesanan, dan tiket memakai pagination.
+
+### Pengelolaan user
+
+Dashboard → Users menyediakan:
+
+- Daftar user dengan pagination.
+- Tambah user melalui modal.
+- Edit nama, email, nomor HP, password, role, dan status aktif melalui modal.
+- Role tersedia: `ADMIN`, `ORGANIZER`, `CUSTOMER`, dan `GATE`.
+- Menonaktifkan user menggunakan soft delete (`active: false`).
+- Proteksi agar admin tidak menonaktifkan/menurunkan role dirinya sendiri dan admin aktif terakhir tidak dapat dihapus.
+- Assignment user Gate ke satu atau lebih event.
+
+### CMS FAQ
+
+Dashboard → FAQ menyediakan pengelolaan:
+
+- Pertanyaan dan jawaban.
+- Urutan tampil.
+- Status published/unpublished.
+
+FAQ published tampil pada homepage.
+
+### Identitas website
+
+Dashboard → Website mengelola identitas situs, antara lain:
+
+- Nama website.
+- Deskripsi/about.
+- Logo.
+- Alamat.
+- Email dan nomor kontak.
+- Link media sosial.
+
+Perubahan digunakan oleh Navbar, Footer, dashboard, halaman login/register, metadata auth, dan halaman profil. Cache layout direvalidasi setelah settings diperbarui.
+
+## Otorisasi dan keamanan
+
+- Password di-hash dengan bcrypt.
+- Session memakai token HMAC-SHA256 pada cookie HTTP-only.
+- Cookie memakai `SameSite=Lax`, `Secure` pada production, dan masa berlaku tujuh hari.
+- Public session tidak menerima role Gate.
+- Gate session hanya menerima role Gate atau Admin yang diizinkan.
+- API manager memfilter data berdasarkan kepemilikan organizer; Admin mendapat cakupan global.
+- Update profil menargetkan user dari session, bukan ID dari request.
+- Perubahan email/password membutuhkan password saat ini.
+- Credential QR berupa bearer token random versi `tiptip:v1`, disimpan sebagai hash untuk lookup dan AES-256-GCM ciphertext untuk redisplay.
+- Check-in memakai conditional update dan unique index agar tiket hanya dapat digunakan sekali meskipun terjadi scan bersamaan.
+
+## Route utama
+
+| Route                | Akses               | Fungsi                            |
+| -------------------- | ------------------- | --------------------------------- |
+| `/`                  | Publik              | Homepage dan katalog event        |
+| `/event/[slug]`      | Publik              | Detail event dan pemilihan tiket  |
+| `/daftar`            | Publik              | Registrasi Customer               |
+| `/masuk`             | Publik              | Login Customer/Organizer/Admin    |
+| `/profile`           | Login publik        | Edit profil sendiri               |
+| `/pesanan`           | Login publik        | Riwayat pesanan Customer          |
+| `/pesanan/[orderId]` | Pemilik order       | Detail order dan QR tiket         |
+| `/dashboard`         | Organizer/Admin     | Ringkasan operasional             |
+| `/dashboard/events`  | Organizer/Admin     | CRUD event                        |
+| `/dashboard/orders`  | Organizer/Admin     | Pesanan dan konfirmasi pembayaran |
+| `/dashboard/tickets` | Organizer/Admin     | Tiket terjual                     |
+| `/dashboard/users`   | Admin               | CRUD user dan assignment Gate     |
+| `/dashboard/faqs`    | Admin               | CMS FAQ                           |
+| `/dashboard/website` | Admin               | Identitas website                 |
+| `/gate/masuk`        | Gate                | Login khusus petugas              |
+| `/gate`              | Gate                | Daftar assignment event           |
+| `/gate/[eventId]`    | Gate ter-assignment | Scanner tiket   
