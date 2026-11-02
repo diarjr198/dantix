@@ -5,17 +5,25 @@ const companyLinks = [
   'Career',
 ];
 
-type FooterSettings = { siteName: string; logoUrl: string; address: string; aboutTitle: string; aboutDescription: string; contactEmail: string; contactPhone: string; instagramUrl: string; xUrl: string; facebookUrl: string };
+export type FooterSettings = { siteName: string; logoUrl: string; address: string; aboutTitle: string; aboutDescription: string; contactEmail: string; contactPhone: string; instagramUrl: string; xUrl: string; facebookUrl: string };
 
 export function Footer({ settings }: { settings?: FooterSettings }) {
   return (
     <footer className="bg-[#f4f4f4] px-5 py-10 text-sm text-slate-700 sm:px-10">
       <div className="mx-auto grid max-w-[1140px] gap-9 md:grid-cols-[1.4fr_1fr_1fr_1.1fr]">
         <div>
-          <p className="text-3xl font-black tracking-[-0.08em] text-[#e51d59]">
-            <span className="text-[#ff7800]">▶</span> {settings?.siteName ?? 'TipTip'}
-          </p>
-          {settings?.logoUrl ? <img src={settings.logoUrl} alt={`Logo ${settings.siteName}`} className="mt-4 h-10 w-auto object-contain" /> : null}
+          {settings?.logoUrl ? (
+            <img
+              src={settings.logoUrl}
+              alt={settings.siteName}
+              className="h-12 max-w-56 object-contain object-left"
+            />
+          ) : (
+            <p className="text-3xl font-black tracking-[-0.08em] text-[#e51d59]">
+              <span className="text-[#ff7800]">▶</span>{' '}
+              {settings?.siteName ?? 'TipTip'}
+            </p>
+          )}
           {settings?.address ? <p className="mt-5 max-w-56 text-xs leading-5">{settings.address}</p> : null}
           <p className="mt-3 max-w-56 text-xs leading-5">{settings?.aboutDescription ?? 'TipTip membantu kamu menemukan event dan membeli tiket dengan mudah.'}</p>
           {settings?.contactPhone ? <p className="mt-3 text-xs">◉ {settings.contactPhone}</p> : null}
@@ -43,7 +51,7 @@ export function Footer({ settings }: { settings?: FooterSettings }) {
           </ul>
           <h3 className="mt-7 font-bold text-slate-900">Ekosistem Kami</h3>
           <p className="mt-4 text-xs">
-            <a href="#footer">TipTip</a> <span className="mx-2">·</span>{' '}
+            <a href="#footer">{settings?.siteName ?? 'TipTip'}</a> <span className="mx-2">·</span>{' '}
             <a href="#footer" className="underline">
               SatuSatu
             </a>
@@ -90,7 +98,7 @@ export function Footer({ settings }: { settings?: FooterSettings }) {
         Direktorat Jenderal Perlindungan Konsumen dan Tertib Niaga Kementerian
         Perdagangan Republik Indonesia　•　☎ 0853–1111–1010
         <p className="mt-3">
-          © 2026 PT TipTip Network Indonesia. Seluruh hak cipta dilindungi.
+          © 2026 {settings?.siteName ?? 'TipTip'}. Seluruh hak cipta dilindungi.
         </p>
       </div>
     </footer>
