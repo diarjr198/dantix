@@ -7,6 +7,7 @@ const serverEnvSchema = z.object({
   AUTH_SESSION_SECRET: z
     .string()
     .min(32, 'AUTH_SESSION_SECRET must be at least 32 characters'),
+  QRIS_STATIC_PAYLOAD: z.string().trim().min(1, 'QRIS_STATIC_PAYLOAD is required'),
 });
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>;

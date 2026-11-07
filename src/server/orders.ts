@@ -1,5 +1,7 @@
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomInt } from 'node:crypto';
 import { createTicketCredential, decryptTicketCredential } from '@/server/ticket-credentials';
+import { getServerEnv } from '@/server/config/env';
+import { generateDynamicQris } from '@/server/payments/qris';
 import { isValidObjectId } from 'mongoose';
 import { connectDatabase } from '@/server/db/connection';
 import { EventModel } from '@/server/models/event';
@@ -122,6 +124,20 @@ export async function createPendingOrder(user: CurrentUser, input: OrderInput) {
       (sum, item) => sum + item.ticket.price * item.quantity,
       0,
     );
+    let paymentFee: number | undefined;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const candidate = randomInt(100, 1000);
+      const collision = await OrderModel.exists({
+        status: 'PENDING',
+        expiresAt: { $gt: now },
+        total: subtotal + candidate,
+      }).session(session);
+      if (!collision) {
+        paymentFee = candidate;
+        break;
+      }
+    }
+    if (paymentFee === undefined) throw new Error('PAYMENT_CODE_UNAVAILABLE');
     const [order] = await OrderModel.create(
       [
         {
@@ -135,8 +151,8 @@ export async function createPendingOrder(user: CurrentUser, input: OrderInput) {
           discount: 0,
           tax: 0,
           serviceFee: 0,
-          paymentFee: 0,
-          total: subtotal,
+          paymentFee,
+          total: subtotal + paymentFee,
           status: 'PENDING',
           expiresAt: new Date(now.getTime() + 15 * 60 * 1000),
           participants: participantSnapshots,
@@ -499,6 +515,9 @@ export async function getUserOrder(userId: string, orderId: string) {
   const payloads = order.status === 'PAID'
     ? new Map(await Promise.all(tickets.map(async (ticket) => [ticket._id.toString(), await ticketPayload(ticket._id.toString())] as const)))
     : new Map<string, string | null>();
+  const paymentQris = order.status === 'PENDING'
+    ? generateDynamicQris(getServerEnv().QRIS_STATIC_PAYLOAD, order.total)
+    : null;
   return {
     id: order._id.toString(),
     bookingCode: order.bookingCode,
@@ -507,7 +526,9 @@ export async function getUserOrder(userId: string, orderId: string) {
     contactPhone: order.contactPhone,
     status: order.status,
     subtotal: order.subtotal,
+    paymentFee: order.paymentFee,
     total: order.total,
+    paymentQris,
     expiresAt: order.expiresAt,
     paidAt: order.paidAt,
     createdAt: order.createdAt,
@@ -559,7 +580,7 @@ export function orderError(error: unknown) {
           ? 404
           : code === 'INVALID_ID' || code === 'VALIDATION'
             ? 400
-            : ['QUOTA', 'EXPIRED', 'INVALID_STATUS', 'INVENTORY'].includes(code)
+            : ['QUOTA', 'EXPIRED', 'INVALID_STATUS', 'INVENTORY', 'PAYMENT_CODE_UNAVAILABLE'].includes(code)
               ? 409
               : 500;
   return Response.json(
