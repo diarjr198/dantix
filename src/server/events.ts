@@ -77,7 +77,12 @@ function dto(event: any, organizer?: any, tickets?: any[]) {
     })),
   };
 }
+function requireOrganizerRole(user: CurrentUser) {
+  if (user.role !== 'ADMIN' && user.role !== 'ORGANIZER')
+    throw new Error('FORBIDDEN');
+}
 export async function organizerFor(user: CurrentUser) {
+  requireOrganizerRole(user);
   await connectDatabase();
   let organizer = await OrganizerModel.findOne({ ownerUserId: user.id });
   if (!organizer)
@@ -184,6 +189,7 @@ export async function createEvent(user: CurrentUser, input: Input) {
   });
 }
 export async function updateEvent(user: CurrentUser, id: string, input: Input) {
+  requireOrganizerRole(user);
   if (!isValidObjectId(id)) throw new Error('INVALID_ID');
   await connectDatabase();
   const event = await EventModel.findById(id);
@@ -262,6 +268,7 @@ export async function publicEvents() {
   const events = await EventModel.find({
     status: 'PUBLISHED',
     moderationStatus: 'APPROVED',
+    endsAt: { $gt: new Date() },
   })
     .sort({ startsAt: 1 })
     .limit(12)
@@ -289,6 +296,7 @@ export async function publicEvent(slug: string) {
     slug,
     status: 'PUBLISHED',
     moderationStatus: 'APPROVED',
+    endsAt: { $gt: new Date() },
   }).lean();
   if (!event) return null;
   const [organizer, tickets] = await Promise.all([

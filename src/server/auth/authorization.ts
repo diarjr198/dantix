@@ -45,7 +45,7 @@ export async function requireGateForEvent(eventId: string): Promise<CurrentUser>
 
 export async function requireEventManager(eventId: string) {
   if (!isValidObjectId(eventId)) throw new Error('INVALID_ID');
-  const user = await requireUser();
+  const user = await requireRole('ADMIN', 'ORGANIZER');
   if (user.isAdmin) return { user, event: await EventModel.findById(eventId) };
   await connectDatabase();
   const event = await EventModel.findById(eventId);
