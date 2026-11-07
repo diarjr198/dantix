@@ -33,7 +33,7 @@ export function MobileBottomNav({ user }: { user: CurrentUser | null }) {
           <DialogHeader><DialogTitle>Menu</DialogTitle><DialogDescription>Akses cepat akun dan halaman utama.</DialogDescription></DialogHeader>
           <div className="grid gap-3">
             {user ? <>
-              <Link href="/dashboard" onClick={() => setMenuOpen(false)} className="mobile-menu-link">Dashboard</Link>
+              {user.role !== 'CUSTOMER' && <Link href="/dashboard" onClick={() => setMenuOpen(false)} className="mobile-menu-link">Dashboard</Link>}
               <Link href="/pesanan" onClick={() => setMenuOpen(false)} className="mobile-menu-link">Pesanan</Link>
               <Link href="/profile" onClick={() => setMenuOpen(false)} className="mobile-menu-link">Profil</Link>
               <LogoutButton />

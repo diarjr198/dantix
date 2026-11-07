@@ -27,7 +27,7 @@ export function Navbar({ user }: { user: CurrentUser | null }) {
           {user ? <>
             <Link id="navbar-action-orders" href="/pesanan" style={{ backgroundColor: '#b9fbc0' }} className={buttonVariants({ variant: 'neutral', size: 'sm', className: 'cursor-pointer text-xs' })}>Pesanan</Link>
             <Link href="/profile" style={{ backgroundColor: '#fbc4d9' }} className={buttonVariants({ variant: 'neutral', size: 'sm', className: 'cursor-pointer text-xs' })}>Profil</Link>
-            <Link id="navbar-action-dashboard" href="/dashboard" style={{ backgroundColor: '#a9def9' }} className={buttonVariants({ variant: 'neutral', size: 'sm', className: 'cursor-pointer text-xs' })}>Dashboard</Link>
+            {user.role !== 'CUSTOMER' && <Link id="navbar-action-dashboard" href="/dashboard" style={{ backgroundColor: '#a9def9' }} className={buttonVariants({ variant: 'neutral', size: 'sm', className: 'cursor-pointer text-xs' })}>Dashboard</Link>}
             <LogoutButton />
           </> : <>
             <Link href="/masuk" className={buttonVariants({ variant: 'neutral', size: 'sm', className: 'cursor-pointer' })}>Masuk</Link>
