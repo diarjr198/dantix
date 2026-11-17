@@ -13,6 +13,11 @@ Platform ticketing event end-to-end berbasis Next.js App Router, TypeScript, Tai
 - `qrcode.react` untuk tiket QR
 - `html5-qrcode` untuk pemindaian kamera
 
+## Dokumen proyek
+
+- [SRS DANTix v1.0](./SRS_DANTix_v1.0.docx): Software Requirements Specification yang memuat kebutuhan fungsional, nonfungsional, serta spesifikasi sistem DANTix.
+- [Presentasi DANTix](./DANTix_Presentasi.pptx): Materi presentasi yang menjelaskan gambaran umum, fitur, alur, dan rancangan sistem DANTix.
+
 ## Role dan akun demo
 
 Jalankan `pnpm db:seed` untuk membuat akun berikut.
